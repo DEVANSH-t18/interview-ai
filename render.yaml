@@ -1,0 +1,40 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: interview-ai-backend
+    env: node
+    plan: free
+    rootDir: Backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false # Render will ask you to input this in the UI during setup
+      - key: GOOGLE_GENAI_API_KEY
+        sync: false # Render will ask you to input this in the UI during setup
+      - key: JWT_SECRET
+        generateValue: true # Render will automatically generate a secure random secret key
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: interview-ai-frontend
+          property: host
+
+  # Frontend Static Site
+  - type: web
+    name: interview-ai-frontend
+    env: static
+    plan: free
+    rootDir: Frontend
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: interview-ai-backend
+          property: host
