@@ -20,13 +20,14 @@ services:
         generateValue: true # Render will automatically generate a secure random secret key
       - key: FRONTEND_URL
         fromService:
-          type: static
+          type: web
           name: interview-ai-frontend
           property: host
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: interview-ai-frontend
+    runtime: static
     plan: free
     rootDir: Frontend
     buildCommand: npm install && npm run build
