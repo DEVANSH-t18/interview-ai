@@ -1,0 +1,36 @@
+.button{
+
+    border: none;
+    outline: none;
+    padding-inline: 1.5rem;
+    padding-block: 0.75rem;
+    border-radius: 1rem;
+    cursor: pointer;
+
+    transition: all 0.3s ease-in-out;
+
+    &.primary-button{
+        background-color: #d74b7c;
+        color: white;
+    }
+
+    &.logout-button {
+        background-color: transparent;
+        color: #dbe1ea;
+        border: 1px solid #d74b7c;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: inherit;
+
+        &:hover {
+            background-color: rgba(#7b182b  , 0.12);
+            color: #7b182b;
+            border-color: rgba(#7b182b, 0.4);
+        }
+    }
+
+    &:active{
+        transform: scale(0.9);
+    }
+}
