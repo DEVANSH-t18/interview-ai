@@ -14,59 +14,73 @@ export const useAuth = () => {
         setLoading(true)
         try {
             const data = await login({ email, password })
-            if (data && data.token) {
+            if (data && data.token && data.user) {
                 localStorage.setItem("token", data.token)
+                setUser(data.user)
+                return true
             }
-            setUser(data.user)
         } catch (err) {
-
+            console.error(err)
         } finally {
             setLoading(false)
         }
+        return false
     }
 
     const handleRegister = async ({ username, email, password }) => {
         setLoading(true)
         try {
             const data = await register({ username, email, password })
-            if (data && data.token) {
+            if (data && data.token && data.user) {
                 localStorage.setItem("token", data.token)
+                setUser(data.user)
+                return true
             }
-            setUser(data.user)
         } catch (err) {
-
+            console.error(err)
         } finally {
             setLoading(false)
         }
+        return false
     }
 
     const handleLogout = async () => {
         setLoading(true)
         try {
             await logout()
+        } catch (err) {
+            console.error(err)
+        } finally {
             localStorage.removeItem("token")
             setUser(null)
-        } catch (err) {
-
-        } finally {
             setLoading(false)
         }
     }
 
     useEffect(() => {
-
         const getAndSetUser = async () => {
+            const token = localStorage.getItem("token")
+            if (!token) {
+                setLoading(false)
+                return
+            }
             try {
-
                 const data = await getMe()
-                setUser(data.user)
-            } catch (err) { } finally {
+                if (data && data.user) {
+                    setUser(data.user)
+                } else {
+                    localStorage.removeItem("token")
+                    setUser(null)
+                }
+            } catch (err) {
+                localStorage.removeItem("token")
+                setUser(null)
+            } finally {
                 setLoading(false)
             }
         }
 
         getAndSetUser()
-
     }, [])
 
     return { user, loading, handleRegister, handleLogin, handleLogout }
