@@ -1,10 +1,32 @@
 import axios from "axios"
 
 
+const getBaseURL = () => {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl && envUrl.startsWith("http")) {
+        return envUrl;
+    }
+    if (typeof window !== "undefined" && window.location.hostname.endsWith(".onrender.com")) {
+        const backendHostname = window.location.hostname.replace("frontend", "backend");
+        return `https://${backendHostname}`;
+    }
+    return "http://localhost:3000";
+}
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
+    baseURL: getBaseURL(),
     withCredentials: true
 })
+
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
 
 export async function register({ username, email, password }) {
 

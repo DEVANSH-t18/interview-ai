@@ -6,8 +6,24 @@ const app = express()
 
 app.use(express.json())
 app.use(cookieParser())
+const allowedOrigin = process.env.FRONTEND_URL;
 app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const origins = [
+            "http://localhost:5173",
+            allowedOrigin
+        ];
+        if (allowedOrigin) {
+            origins.push(`https://${allowedOrigin.replace(/^https?:\/\//, "")}`);
+            origins.push(`http://${allowedOrigin.replace(/^https?:\/\//, "")}`);
+        }
+        if (origins.includes(origin) || origin.endsWith(".onrender.com")) {
+            callback(null, true);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
     credentials: true
 }))
 
