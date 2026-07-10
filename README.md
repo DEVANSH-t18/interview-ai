@@ -6,11 +6,9 @@ This repository is pre-configured for a **one-click deployment** on [Render](htt
 
 ## 🚀 One-Click Deploy to Render
 
-If your code is pushed to a GitHub repository, you can deploy it instantly by clicking the button below.
+Deploy this repository instantly by clicking the button below:
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=YOUR_GITHUB_REPO_URL)
-
-> ⚠️ **Important:** Replace `YOUR_GITHUB_REPO_URL` in the URL above with the HTTPS link to your GitHub repository (e.g., `https://github.com/username/interviewAI`).
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/DEVANSH-t18/interview-ai)
 
 ---
 

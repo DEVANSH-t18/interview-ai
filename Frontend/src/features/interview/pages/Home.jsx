@@ -6,15 +6,61 @@ import Footer from '../../../components/Footer'
 
 const Home = () => {
 
-    const { loading, generateReport,reports } = useInterview()
+    const { loading, generateReport, reports, uploadProgress, loadingStep } = useInterview()
     const [ jobDescription, setJobDescription ] = useState("")
     const [ selfDescription, setSelfDescription ] = useState("")
+    const [ selectedFile, setSelectedFile ] = useState(null)
+    const [ fileError, setFileError ] = useState("")
+    const [ generalError, setGeneralError ] = useState("")
     const resumeInputRef = useRef()
 
     const navigate = useNavigate()
 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0]
+        if (file) {
+            // Validate file format
+            const allowedExtensions = /(\.pdf|\.docx)$/i;
+            if (!allowedExtensions.exec(file.name)) {
+                setFileError("Invalid file type. Please upload a PDF or DOCX file.")
+                setSelectedFile(null)
+                return
+            }
+            // Validate file size (max 3MB, matching backend limits)
+            const maxSizeBytes = 3 * 1024 * 1024;
+            if (file.size > maxSizeBytes) {
+                setFileError("File is too large. Maximum size is 3MB.")
+                setSelectedFile(null)
+                return
+            }
+            setFileError("")
+            setGeneralError("")
+            setSelectedFile(file)
+        }
+    }
+
+    const handleRemoveFile = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setSelectedFile(null)
+        setFileError("")
+        if (resumeInputRef.current) {
+            resumeInputRef.current.value = ""
+        }
+    }
+
     const handleGenerateReport = async () => {
-        const resumeFile = resumeInputRef.current.files[0]
+        if (!jobDescription.trim()) {
+            setGeneralError("Please paste the job description first.")
+            return
+        }
+        if (!selectedFile && !selfDescription.trim()) {
+            setGeneralError("Please upload a resume or write a quick self-description.")
+            return
+        }
+        setGeneralError("")
+
+        const resumeFile = selectedFile
         const data = await generateReport({ jobDescription, selfDescription, resumeFile })
         if (data && data._id) {
             navigate(`/interview/${data._id}`)
@@ -22,11 +68,97 @@ const Home = () => {
     }
 
     if (loading) {
+        // Step list config
+        const steps = [
+            { id: 'uploading', label: selectedFile ? `Uploading resume... ${uploadProgress}%` : 'Skipped resume upload' },
+            { id: 'extracting', label: 'Extracting resume content' },
+            { id: 'analyzing', label: 'Analyzing job alignment & skill gaps' },
+            { id: 'finalizing', label: 'Generating preparation plan & questions' }
+        ];
+
+        const getStepStatus = (stepId) => {
+            const stepOrder = ['uploading', 'extracting', 'analyzing', 'finalizing'];
+            const currentIndex = stepOrder.indexOf(loadingStep);
+            const stepIndex = stepOrder.indexOf(stepId);
+
+            if (stepId === 'uploading' && !selectedFile) {
+                return 'completed';
+            }
+
+            if (currentIndex === -1) return 'waiting';
+            if (stepIndex < currentIndex) return 'completed';
+            if (stepIndex === currentIndex) return 'active';
+            return 'waiting';
+        };
+
+        const getProgressBarWidth = () => {
+            if (loadingStep === 'uploading') return `${uploadProgress}%`;
+            if (loadingStep === 'extracting') return '40%';
+            if (loadingStep === 'analyzing') return '70%';
+            if (loadingStep === 'finalizing') return '90%';
+            return '100%';
+        };
+
+        const getProgressBarLabel = () => {
+            if (loadingStep === 'uploading') return 'Uploading File';
+            if (loadingStep === 'extracting') return 'Processing Text';
+            if (loadingStep === 'analyzing') return 'Analyzing Match';
+            return 'Finalizing Dashboard';
+        };
+
+        const getProgressBarPct = () => {
+            if (loadingStep === 'uploading') return `${uploadProgress}%`;
+            if (loadingStep === 'extracting') return '40%';
+            if (loadingStep === 'analyzing') return '70%';
+            return '90%';
+        };
+
         return (
             <main className='loading-screen'>
-                <h1>Loading your interview plan...</h1>
+                <div className='loading-screen__card'>
+                    <div className='loading-screen__header'>
+                        <h1>Creating Your Strategy</h1>
+                        <p>Our AI is analyzing the requirements to prepare your custom dashboard.</p>
+                    </div>
+
+                    <div className='loading-screen__progress-wrapper'>
+                        <div className='loading-screen__progress-bar-bg'>
+                            <div 
+                                className='loading-screen__progress-bar-fill' 
+                                style={{ width: getProgressBarWidth() }} 
+                            />
+                        </div>
+                        <div className='loading-screen__progress-info'>
+                            <span className='progress-label'>{getProgressBarLabel()}</span>
+                            <span className='progress-pct'>{getProgressBarPct()}</span>
+                        </div>
+                    </div>
+
+                    <div className='loading-screen__steps'>
+                        {steps.map((step) => {
+                            const status = getStepStatus(step.id);
+                            return (
+                                <div 
+                                    key={step.id} 
+                                    className={`loading-screen__step loading-screen__step--${status}`}
+                                >
+                                    <span className='step-dot'>
+                                        {status === 'active' && (
+                                            <svg className="spinner-mini" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                                <circle cx="12" cy="12" r="10" strokeDasharray="30 30" strokeLinecap="round">
+                                                    <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+                                                </circle>
+                                            </svg>
+                                        )}
+                                    </span>
+                                    <span className='step-label'>{step.label}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             </main>
-        )
+        );
     }
 
     return (
@@ -52,12 +184,15 @@ const Home = () => {
                             <span className='badge badge--required'>Required</span>
                         </div>
                         <textarea
-                            onChange={(e) => { setJobDescription(e.target.value) }}
+                            onChange={(e) => { 
+                                setJobDescription(e.target.value) 
+                                if(generalError && e.target.value.trim()) setGeneralError("")
+                            }}
                             className='panel__textarea'
                             placeholder={`Paste the full job description here...\ne.g. 'Senior Frontend Engineer at Google requires proficiency in React, TypeScript, and large-scale system design...'`}
                             maxLength={5000}
                         />
-                        <div className='char-counter'>0 / 5000 chars</div>
+                        <div className='char-counter'>{jobDescription.length} / 5000 chars</div>
                     </div>
 
                     {/* Vertical Divider */}
@@ -78,14 +213,46 @@ const Home = () => {
                                 Upload Resume
                                 <span className='badge badge--best'>Best Results</span>
                             </label>
-                            <label className='dropzone' htmlFor='resume'>
-                                <span className='dropzone__icon'>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" /></svg>
-                                </span>
-                                <p className='dropzone__title'>Click to upload or drag &amp; drop</p>
-                                <p className='dropzone__subtitle'>PDF or DOCX (Max 5MB)</p>
-                                <input ref={resumeInputRef} hidden type='file' id='resume' name='resume' accept='.pdf,.docx' />
-                            </label>
+                            
+                            {!selectedFile ? (
+                                <label className='dropzone' htmlFor='resume'>
+                                    <span className='dropzone__icon'>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" /></svg>
+                                    </span>
+                                    <p className='dropzone__title'>Click to upload or drag &amp; drop</p>
+                                    <p className='dropzone__subtitle'>PDF or DOCX (Max 3MB)</p>
+                                    <input 
+                                        ref={resumeInputRef} 
+                                        hidden 
+                                        type='file' 
+                                        id='resume' 
+                                        name='resume' 
+                                        accept='.pdf,.docx' 
+                                        onChange={handleFileChange}
+                                    />
+                                </label>
+                            ) : (
+                                <div className='staged-file-card'>
+                                    <div className='staged-file-card__info'>
+                                        <span className='staged-file-card__icon'>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        </span>
+                                        <div className='staged-file-card__details'>
+                                            <p className='staged-file-card__name'>{selectedFile.name}</p>
+                                            <p className='staged-file-card__size'>{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        className='staged-file-card__remove-btn' 
+                                        onClick={handleRemoveFile}
+                                        title="Remove file"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                            )}
+                            {fileError && <p className='file-error-msg'>{fileError}</p>}
                         </div>
 
                         {/* OR Divider */}
@@ -95,7 +262,10 @@ const Home = () => {
                         <div className='self-description'>
                             <label className='section-label' htmlFor='selfDescription'>Quick Self-Description</label>
                             <textarea
-                                onChange={(e) => { setSelfDescription(e.target.value) }}
+                                onChange={(e) => { 
+                                    setSelfDescription(e.target.value) 
+                                    if(generalError && e.target.value.trim()) setGeneralError("")
+                                }}
                                 id='selfDescription'
                                 name='selfDescription'
                                 className='panel__textarea panel__textarea--short'
@@ -114,14 +284,21 @@ const Home = () => {
                 </div>
 
                 {/* Card Footer */}
-                <div className='interview-card__footer'>
-                    <span className='footer-info'>AI-Powered Strategy Generation &bull; Approx 30s</span>
-                    <button
-                        onClick={handleGenerateReport}
-                        className='generate-btn'>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" /></svg>
-                        Generate My Interview Strategy
-                    </button>
+                <div className='interview-card__footer' style={{ flexDirection: 'column', gap: '0.75rem', alignItems: 'stretch' }}>
+                    {generalError && (
+                        <p className='general-error-msg' style={{ color: '#ff4d4d', fontSize: '0.85rem', margin: '0 0 0.5rem 0', textAlign: 'center', fontWeight: '500' }}>
+                            {generalError}
+                        </p>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span className='footer-info'>AI-Powered Strategy Generation &bull; Approx 30s</span>
+                        <button
+                            onClick={handleGenerateReport}
+                            className='generate-btn'>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" /></svg>
+                            Generate My Interview Strategy
+                        </button>
+                    </div>
                 </div>
             </div>
 

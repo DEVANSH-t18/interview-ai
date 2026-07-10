@@ -13,18 +13,79 @@ export const useInterview = () => {
         throw new Error("useInterview must be used within an InterviewProvider")
     }
 
-    const { loading, setLoading, report, setReport, reports, setReports } = context
+    const { 
+        loading, 
+        setLoading, 
+        report, 
+        setReport, 
+        reports, 
+        setReports,
+        uploadProgress,
+        setUploadProgress,
+        loadingStep,
+        setLoadingStep
+    } = context
 
     const generateReport = async ({ jobDescription, selfDescription, resumeFile }) => {
         setLoading(true)
+        setUploadProgress(0)
+        
+        let simulatedTimer = null
+        
+        if (resumeFile) {
+            setLoadingStep('uploading')
+        } else {
+            setLoadingStep('analyzing')
+        }
+        
+        const startSimulation = (initialStep) => {
+            let step = initialStep
+            const runTransition = () => {
+                if (step === 'extracting') {
+                    simulatedTimer = setTimeout(() => {
+                        setLoadingStep('analyzing')
+                        step = 'analyzing'
+                        runTransition()
+                    }, 3000)
+                } else if (step === 'analyzing') {
+                    simulatedTimer = setTimeout(() => {
+                        setLoadingStep('finalizing')
+                        step = 'finalizing'
+                    }, 6000)
+                }
+            }
+            runTransition()
+        }
+
+        if (!resumeFile) {
+            startSimulation('analyzing')
+        }
+
         let response = null
         try {
-            response = await generateInterviewReport({ jobDescription, selfDescription, resumeFile })
+            response = await generateInterviewReport({
+                jobDescription,
+                selfDescription,
+                resumeFile,
+                onUploadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                        setUploadProgress(percentCompleted)
+                        if (percentCompleted === 100) {
+                            setLoadingStep('extracting')
+                            startSimulation('extracting')
+                        }
+                    }
+                }
+            })
             setReport(response?.interviewReport || null)
         } catch (error) {
             console.log(error)
         } finally {
+            if (simulatedTimer) clearTimeout(simulatedTimer)
             setLoading(false)
+            setLoadingStep('idle')
+            setUploadProgress(0)
         }
 
         return response?.interviewReport || null
@@ -86,6 +147,6 @@ export const useInterview = () => {
         }
     }, [ interviewId ])
 
-    return { loading, report, reports, generateReport, getReportById, getReports, getResumePdf }
+    return { loading, report, reports, generateReport, getReportById, getReports, getResumePdf, uploadProgress, loadingStep }
 
 }
