@@ -20,18 +20,17 @@ services:
         generateValue: true # Render will automatically generate a secure random secret key
       - key: FRONTEND_URL
         fromService:
-          type: web
+          type: static
           name: interview-ai-frontend
           property: host
 
   # Frontend Static Site
-  - type: web
+  - type: static
     name: interview-ai-frontend
-    env: static
     plan: free
     rootDir: Frontend
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
